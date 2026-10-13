@@ -1,50 +1,56 @@
-# test-manager-library-3145556-tool
+# Manager Library - demo seeder (`tool`)
 
-> **Prueba técnica · Ficha ADSO 3145556**
-> Entrega: **martes 13 de octubre de 2026, a las 5:00 p. m.** (17:00, hora Colombia).
+Node.js command line tool that fills a running Manager Library API with demo data. It talks to the HTTP API only
+(never to the database): 40 books, 10 members and 15 loans, some of them partially returned.
 
-Este repositorio guarda las **utilidades** de *Manager Library*: el sembrador de datos de demostración, que usa la API. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+Spec: https://github.com/mauro-1508/test-manager-library-3145556-docs/tree/develop/spec-laravel
 
-## Instrucciones
+## Requirements
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
+- Node.js 20 or newer (uses the built-in `fetch`; no dependencies to install).
+- A running API with its admin user created.
 
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
+## Environment variables
 
-## El reto se desarrolla con React y PHP (Laravel)
+| Variable | Required | Default |
+|---|---|---|
+| `API_URL` | no | `http://localhost:8000/api/v1` |
+| `ADMIN_USERNAME` | yes | - |
+| `ADMIN_PASSWORD` | yes | - |
 
-El spec está escrito para Python y para .NET, pero el reto **no** se hace en esos lenguajes:
+`.env.example` lists them with placeholders. The seeder does not read `.env` files by itself; export the variables
+or use `node --env-file=.env seed.mjs`.
 
-| Capa | Tecnología del reto |
-|---|---|
-| Frontend | React |
-| Backend | PHP con Laravel |
+## Usage
 
-Lo que el spec define sobre el negocio —historias, criterios de aceptación, reglas, contrato de la
-API, modelo de datos— se respeta. Lo que define sobre la tecnología se traduce a React y Laravel.
+```
+export ADMIN_USERNAME=... ADMIN_PASSWORD=...
+npm run seed
+```
 
-## La prueba no consiste en escribir el código
+Books and members that already exist (409 `ISBN_TAKEN` / `DOCUMENT_TAKEN`) are looked up and reused. A loan the API
+rejects is reported and skipped.
 
-El propósito principal es ver la **capacidad de desempeño con SDD** (*Spec-Driven Development*,
-desarrollo guiado por especificación): cómo se lee, se interpreta y se aplica una especificación
-para llevarla a un stack distinto. El código es el medio, no el fin.
+Optional argument: `--phase=all|overdue|rest` (default `all`), explained below.
 
-## Entrega
+## What gets created
 
-Cuenta lo que quede **subido a los forks antes de las 5:00 p. m.** (17:00). Lo que llegue después no se revisa.
-No hay prórroga: suban avances parciales con commits pequeños durante la prueba.
+- 40 books with unique, valid ISBN-13 values, spread over the five categories, 1 to 4 copies each.
+- 10 members.
+- 15 loans of 1 to 3 lines. The first three loans, to three distinct members with one line each, are printed as
+  "the 3 that will be overdue". Some lines of the other loans are returned.
 
-## Los seis repositorios
+At the end it prints the counts, the lines currently returned by `GET /loans/overdue` and the rows of
+`GET /reports/most-borrowed` for the current month.
 
-| Repositorio | Qué va ahí |
-|---|---|
-| [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs) | El spec: `spec-python/` y `spec-.net/` |
-| [`test-manager-library-3145556-api`](https://github.com/code-sena/test-manager-library-3145556-api) | Backend en PHP (Laravel) |
-| [`test-manager-library-3145556-app`](https://github.com/code-sena/test-manager-library-3145556-app) | Frontend en React |
-| [`test-manager-library-3145556-page`](https://github.com/code-sena/test-manager-library-3145556-page) | Sitio público estático de presentación |
-| [`test-manager-library-3145556-infra`](https://github.com/code-sena/test-manager-library-3145556-infra) | Contenedores, red, volúmenes y motor de base de datos vacío |
-| [`test-manager-library-3145556-tool`](https://github.com/code-sena/test-manager-library-3145556-tool) | Utilidades: sembrador de datos de demostración |
+## The overdue note
+
+The API sets `loaned_at` from its own clock and `due_at = loaned_at + 14 days`. The seeder cannot backdate a loan
+through the API, so those three loans are overdue only if they are created while the API clock is at least 15 days
+behind the real date, or after 14 days have passed.
+
+- Plain run: `npm run seed` creates everything; `/loans/overdue` returns 0 lines until the due date passes, then
+  returns the 3 lines.
+- With a shifted clock: run `npm run seed -- --phase=overdue` while the API runs with its clock 15 days behind (for
+  example by shifting the system time of the API container), restore the clock, then run
+  `npm run seed -- --phase=rest`. Afterwards `/loans/overdue` returns exactly 3 lines.
