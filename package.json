@@ -1,0 +1,11 @@
+{
+  "name": "manager-library-seeder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo data seeder for Manager Library. Uses the HTTP API only.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "seed": "node seed.mjs"
+  }
+}
